@@ -1,0 +1,208 @@
+import { useState, FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import Label from '@/components/ui/Label'
+import { MessageSquare, AlertCircle } from 'lucide-react'
+import { authService } from '@/services/authService'
+import { useAuthStore } from '@/store/authStore'
+
+export default function LoginPage() {
+  const navigate = useNavigate()
+  const { login: setAuthState } = useAuthStore()
+
+  const [isLogin, setIsLogin] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: '',
+    confirmPassword: '',
+  })
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    try {
+      if (isLogin) {
+        // Login
+        const response = await authService.login({
+          email: formData.email,
+          password: formData.password,
+        })
+
+        // Save auth state
+        setAuthState(response.user, response.accessToken, response.refreshToken)
+
+        // Redirect to home
+        navigate('/')
+      } else {
+        // Register
+        if (formData.password !== formData.confirmPassword) {
+          setError('Mật khẩu xác nhận không khớp')
+          setIsLoading(false)
+          return
+        }
+
+        const response = await authService.register({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        })
+
+        // Save auth state
+        setAuthState(response.user, response.accessToken, response.refreshToken)
+
+        // Redirect to home
+        navigate('/')
+      }
+    } catch (err: any) {
+      console.error('Auth error:', err)
+      setError(
+        err.response?.data?.message ||
+        (isLogin ? 'Đăng nhập thất bại' : 'Đăng ký thất bại')
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin)
+    setError('')
+    setFormData({
+      email: '',
+      password: '',
+      name: '',
+      confirmPassword: '',
+    })
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-primary rounded-lg">
+              <MessageSquare className="w-8 h-8 text-primary-foreground" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl text-center">
+            {isLogin ? 'Đăng nhập' : 'Đăng ký'}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {isLogin
+              ? 'Nhập email và mật khẩu để đăng nhập'
+              : 'Tạo tài khoản mới để bắt đầu chat'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Error message */}
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Name field - only for register */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Tên hiển thị</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required={!isLogin}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+
+            {/* Email field */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="example@email.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Password field */}
+            <div className="space-y-2">
+              <Label htmlFor="password">Mật khẩu</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Confirm Password - only for register */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required={!isLogin}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+
+            {/* Submit button */}
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? 'Đang xử lý...' : (isLogin ? 'Đăng nhập' : 'Đăng ký')}
+            </Button>
+
+            {/* Toggle between login and register */}
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">
+                {isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
+              </span>
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="text-primary hover:underline font-medium"
+                disabled={isLoading}
+              >
+                {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
