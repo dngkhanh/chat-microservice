@@ -1,0 +1,36 @@
+name: Build & Push Chat Service to ECR
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "chat-backend/apps/chat-service/**"
+      - "chat-backend/deploy/Dockerfile.chat-service"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Chat image
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          IMAGE_NAME: chat-chat
+        run: |
+          docker build \
+            -f chat-backend/deploy/Dockerfile.chat-service \
+            -t $IMAGE_NAME:latest \
+            chat-backend
+
+          docker tag $IMAGE_NAME:latest $REGISTRY/$IMAGE_NAME:latest
+          docker push $REGISTRY/$IMAGE_NAME:latest
