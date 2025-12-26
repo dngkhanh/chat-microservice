@@ -12,7 +12,6 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
     // Extract token from Authorization header or cookie
     const token =
       this.extractTokenFromHeader(request) ||
@@ -30,7 +29,6 @@ export class JwtAuthGuard implements CanActivate {
 
       // Attach user data to request
       request.user = payload;
-      
       return true;
     } catch {
       throw new UnauthorizedException('Invalid Token');
