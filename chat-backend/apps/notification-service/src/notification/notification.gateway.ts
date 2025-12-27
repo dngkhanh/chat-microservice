@@ -9,10 +9,13 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UnauthorizedException } from '@nestjs/common';
-import { EventPattern, Payload } from '@nestjs/microservices';
 import { JwtService } from '@nestjs/jwt';
 import { NotificationService } from './notification.service';
 import { MetricsService } from '@app/common';
+
+interface AuthSocket extends Socket {
+  userId?: number;
+}
 
 @WebSocketGateway({
   namespace: '/notifications',
@@ -35,7 +38,7 @@ export class NotificationGateway
     private readonly jwtService: JwtService,
   ) {}
 
-  async handleConnection(client: Socket) {
+  async handleConnection(client: AuthSocket) {
     try {
       // Extract token from auth or handshake
       const token =
@@ -51,23 +54,24 @@ export class NotificationGateway
         secret: process.env.JWT_ACCESS_SECRET || 'supersecret_access',
       });
 
-      client.data.userId = payload.sub as number;
+      client.userId = payload.sub;
+
+      if (!client.userId) {
+        throw new UnauthorizedException('Invalid user ID in token');
+      }
 
       // Join user's personal room
-      await client.join(`user:${client.data.userId}`);
-
-      this.logger.log(`User ${client.data.userId} connected to notifications`);
+      await client.join(`user:${client.userId}`);
+      this.logger.log(`User ${client.userId} connected to notifications`);
 
       // Send current unread count
-      const count = await this.notificationService.getUnreadCount(
-        client.data.userId as number,
-      );
+      const count = await this.notificationService.getUnreadCount(client.userId);
       client.emit('notification:count', { count });
 
       // Update active connections metric
       this.updateActiveConnectionsMetric();
     } catch (error) {
-      this.logger.error(`Connection failed: ${error.message}`);
+      this.logger.error(`Connection error: ${error.message}`);
       client.emit('error', {
         code: 'AUTH_INVALID',
         message: 'Authentication failed',
@@ -76,8 +80,8 @@ export class NotificationGateway
     }
   }
 
-  handleDisconnect(client: Socket) {
-    const userId = client.data.userId;
+  handleDisconnect(client: AuthSocket) {
+    const userId = client.userId;
     this.logger.log(`User ${userId} disconnected from notifications`);
 
     // Update active connections metric
@@ -88,6 +92,9 @@ export class NotificationGateway
    * Update active connections count metric
    */
   private updateActiveConnectionsMetric() {
+    if (!this.server?.sockets?.sockets) {
+      return;
+    }
     const sockets = this.server.sockets.sockets;
     const activeConnections = sockets.size;
     this.metricsService.setActiveConnections(activeConnections);
@@ -99,10 +106,10 @@ export class NotificationGateway
   @SubscribeMessage('notification:list')
   async handleList(
     @MessageBody() data: { unreadOnly?: boolean },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthSocket,
   ) {
     try {
-      const userId = client.data.userId as number;
+      const userId = client.userId as number;
       const notifications = await this.notificationService.findByUser(
         userId,
         data.unreadOnly,
@@ -122,10 +129,10 @@ export class NotificationGateway
   @SubscribeMessage('notification:get')
   async handleGet(
     @MessageBody() data: { notificationId: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthSocket,
   ) {
     try {
-      const userId = client.data.userId as number;
+      const userId = client.userId as number;
       const notification = await this.notificationService.findById(
         data.notificationId,
       );
@@ -153,10 +160,10 @@ export class NotificationGateway
   @SubscribeMessage('notification:read')
   async handleMarkAsRead(
     @MessageBody() data: { notificationId: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthSocket,
   ) {
     try {
-      const userId = client.data.userId as number;
+      const userId = client.userId as number;
       const notification = await this.notificationService.markAsRead(
         data.notificationId,
         userId,
@@ -187,10 +194,10 @@ export class NotificationGateway
   @SubscribeMessage('notification:delete')
   async handleDelete(
     @MessageBody() data: { notificationId: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthSocket,
   ) {
     try {
-      const userId = client.data.userId as number;
+      const userId = client.userId as number;
       await this.notificationService.delete(data.notificationId, userId);
 
       // Broadcast to all user's devices
@@ -215,7 +222,7 @@ export class NotificationGateway
    * Heartbeat ping
    */
   @SubscribeMessage('notification:ping')
-  handlePing(@ConnectedSocket() client: Socket) {
+  handlePing(@ConnectedSocket() client: AuthSocket) {
     client.emit('pong', { timestamp: Date.now() });
     return { ok: true };
   }
@@ -240,136 +247,6 @@ export class NotificationGateway
       this.server
         .to(`user:${userId}`)
         .emit('notification:created', notification);
-    }
-  }
-
-  // ============ RABBITMQ EVENT LISTENERS ============
-
-  /**
-   * Listen for message.created events from Chat Service via RabbitMQ
-   * Create notification and push to user via WebSocket
-   */
-  @EventPattern('message.created')
-  async handleMessageCreatedEvent(
-    @Payload()
-    data: {
-      user_id: number;
-      type: string;
-      title: string;
-      content: string;
-      related_id: string;
-      sender_id: number;
-    },
-  ) {
-    try {
-      this.logger.log(
-        `Received message.created event for user ${data.user_id}`,
-      );
-
-      // Create notification in database
-      const notification = await this.notificationService.create({
-        user_id: data.user_id,
-        type: data.type,
-        title: data.title,
-        content: data.content,
-        related_id: data.related_id,
-      });
-
-      // Push to user via WebSocket (multi-device)
-      await this.sendNotificationToUser(data.user_id, notification.toJSON());
-
-      this.logger.log(
-        `Notification created and pushed to user ${data.user_id}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error handling message.created event: ${error.message}`,
-      );
-    }
-  }
-
-  /**
-   * Listen for group_invite.created events from Chat Service via RabbitMQ
-   */
-  @EventPattern('group_invite.created')
-  async handleGroupInviteCreatedEvent(
-    @Payload()
-    data: {
-      user_id: number;
-      title: string;
-      content: string;
-      related_id: string;
-    },
-  ) {
-    try {
-      this.logger.log(
-        `Received group_invite.created event for user ${data.user_id}`,
-      );
-
-      // Create notification in database
-      const notification = await this.notificationService.create({
-        user_id: data.user_id,
-        type: 'group_invite',
-        title: data.title,
-        content: data.content,
-        related_id: data.related_id,
-      });
-
-      // Push to user via WebSocket
-      await this.sendNotificationToUser(data.user_id, notification.toJSON());
-
-      this.logger.log(
-        `Group invite notification pushed to user ${data.user_id}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error handling group_invite.created event: ${error.message}`,
-      );
-    }
-  }
-
-  /**
-   * Listen for system.broadcast events (admin notifications)
-   */
-  @EventPattern('system.broadcast')
-  async handleSystemBroadcastEvent(
-    @Payload()
-    data: {
-      user_ids: number[];
-      title: string;
-      content: string;
-    },
-  ) {
-    try {
-      this.logger.log(
-        `Received system.broadcast for ${data.user_ids.length} users`,
-      );
-
-      // Create notifications in bulk
-      await this.notificationService.createBroadcast(
-        data.title,
-        data.content,
-        data.user_ids,
-      );
-
-      // Push to all users via WebSocket
-      this.broadcastToAll(
-        {
-          type: 'system',
-          title: data.title,
-          content: data.content,
-          is_read: false,
-        },
-        data.user_ids,
-      );
-
-      this.logger.log(
-        `System broadcast pushed to ${data.user_ids.length} users`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error handling system.broadcast event: ${error.message}`,
-      );
     }
   }
 }
