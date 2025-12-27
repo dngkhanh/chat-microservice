@@ -1,4 +1,4 @@
-import { Controller, Logger, Inject } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { HttpService } from '@nestjs/axios';
 import { NotificationService } from './notification.service';
@@ -26,7 +26,8 @@ export class NotificationRabbitMQController {
     private readonly httpService: HttpService,
   ) {
     this.logger.log('NotificationRabbitMQController initialized');
-    this.userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+    this.userServiceUrl =
+      process.env.USER_SERVICE_URL || 'http://localhost:3001';
   }
 
   /**
@@ -105,7 +106,7 @@ export class NotificationRabbitMQController {
         message_type: data.message_type || 'text',
       });
       this.logger.debug(
-        `[DB] ✅ Notification created with ID: ${notification._id}`,
+        `[DB] ✅ Notification created with ID: ${notification._id.toString()}`,
       );
 
       // Push to user via WebSocket (multi-device)
