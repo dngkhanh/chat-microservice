@@ -17,8 +17,6 @@ export function createReverseProxyMiddleware(
     changeOrigin: true,
     pathRewrite: (reqPath: string, _req: any) => {
       // Express strips the prefix before passing to middleware
-      // We need to add it back for downstream services
-      // Example: /auth/login → /login (stripped by express) → /auth/login (add back)
       return path + reqPath;
     },
     ws: false, // WebSocket handled separately
@@ -39,7 +37,7 @@ export function createReverseProxyMiddleware(
         // IMPORTANT: Forward cookies to downstream services
         // This is required for HttpOnly cookie authentication
         if (req.headers.cookie) {
-          proxyReq.setHeader('cookie', req.headers.cookie);
+          proxyReq.setHeader('cookie', req.headers.cookie as string);
         }
 
         console.log(
@@ -146,6 +144,6 @@ export function createNamespaceAwareWebSocketMiddleware(
     };
 
     const proxy = createProxyMiddleware(options);
-    proxy(req, res, next);
+    void proxy(req, res, next);
   };
 }
