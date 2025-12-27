@@ -1,14 +1,15 @@
 import axios from 'axios'
 
 const notificationAPI = axios.create({
-  baseURL: import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:3003',
+  baseURL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:3000',
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Add access token from sessionStorage (cross-port solution)
+// Add token to Authorization header
 notificationAPI.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('access_token')
   if (token) {
@@ -25,6 +26,12 @@ export interface Notification {
   title: string
   content: string
   related_id?: string
+  // Enhanced notification fields
+  sender_id?: number
+  sender_name?: string
+  sender_avatar?: string
+  conversation_name?: string
+  message_type?: 'text' | 'image' | 'file' | 'system'
   data?: {
     conversationId?: string
     messageId?: string
@@ -45,12 +52,16 @@ export const notificationService = {
     return response.data
   },
 
+  // Note: markAsRead and markAllAsRead are now handled via WebSocket events
+  // See NotificationDropdown.tsx for WebSocket emission
   markAsRead: async (notificationId: string): Promise<void> => {
-    await notificationAPI.patch(`/notifications/${notificationId}/read`)
+    // Use WebSocket: socket.emit('notification:read', { notificationId })
+    console.warn('Use WebSocket notification:read event instead of REST API')
   },
 
   markAllAsRead: async (): Promise<void> => {
-    await notificationAPI.patch('/notifications/read-all')
+    // Use WebSocket for all notifications
+    console.warn('Use WebSocket notification:read events for all notifications')
   },
 
   deleteNotification: async (notificationId: string): Promise<void> => {
