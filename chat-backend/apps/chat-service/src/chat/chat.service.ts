@@ -180,7 +180,10 @@ export class ChatService {
     currentUserId: number,
     newUserName?: string,
     actorName?: string,
-  ): Promise<{ conversation: ConversationDocument; systemMessage: MessageDocument | null }> {
+  ): Promise<{
+    conversation: ConversationDocument;
+    systemMessage: MessageDocument | null;
+  }> {
     const conversation = await this.findConversationById(conversationId);
 
     if (!conversation.participants.includes(currentUserId)) {
@@ -232,7 +235,10 @@ export class ChatService {
     userIdToRemove: number,
     currentUserId: number,
     userNameToRemove?: string,
-  ): Promise<{ conversation: ConversationDocument; systemMessage: MessageDocument | null }> {
+  ): Promise<{
+    conversation: ConversationDocument;
+    systemMessage: MessageDocument | null;
+  }> {
     const conversation = await this.findConversationById(conversationId);
 
     if (conversation.type === 'private') {
@@ -343,13 +349,12 @@ export class ChatService {
     const savedMessage = await message.save();
 
     // Update conversation with last_message_id
-    await this.conversationModel.findByIdAndUpdate(
-      conversationId,
-      {
+    await this.conversationModel
+      .findByIdAndUpdate(conversationId, {
         last_message_id: savedMessage._id,
         status: 'accepted', // Auto-accept pending conversations on first message
-      },
-    ).exec();
+      })
+      .exec();
 
     return savedMessage;
   }
@@ -360,10 +365,22 @@ export class ChatService {
     limit?: number,
     before?: Date,
   ): Promise<MessageDocument[]> {
-    console.log('[ChatService] getMessages called - conversationId:', conversationId, 'userId:', userId, 'limit:', limit);
+    console.log(
+      '[ChatService] getMessages called - conversationId:',
+      conversationId,
+      'userId:',
+      userId,
+      'limit:',
+      limit,
+    );
 
     const conversation = await this.findConversationById(conversationId);
-    console.log('[ChatService] Conversation found:', conversation._id, 'participants:', conversation.participants);
+    console.log(
+      '[ChatService] Conversation found:',
+      conversation._id,
+      'participants:',
+      conversation.participants,
+    );
 
     if (!conversation.participants.includes(userId)) {
       throw new ForbiddenException(
@@ -392,15 +409,22 @@ export class ChatService {
       query.created_at = { $lt: before };
     }
 
-    console.log('[ChatService] Executing MongoDB query:', JSON.stringify(query), 'pageSize:', pageSize);
+    console.log(
+      '[ChatService] Executing MongoDB query:',
+      JSON.stringify(query),
+      'pageSize:',
+      pageSize,
+    );
 
-    const messages = await this.messageModel
+    const messages = (await this.messageModel
       .find(query)
       .sort({ created_at: -1 })
       .limit(pageSize)
-      .exec() as unknown as MessageDocument[];
-
-    console.log('[ChatService] MongoDB returned messages count:', messages.length);
+      .exec()) as unknown as MessageDocument[];
+    console.log(
+      '[ChatService] MongoDB returned messages count:',
+      messages.length,
+    );
     return messages;
   }
 
@@ -1020,7 +1044,11 @@ export class ChatService {
     conversationId: string,
     content: string,
     systemData: {
-      event: 'member_added' | 'member_removed' | 'group_created' | 'group_deleted';
+      event:
+        | 'member_added'
+        | 'member_removed'
+        | 'group_created'
+        | 'group_deleted';
       userId?: number;
       actorId?: number;
       actorName?: string;
@@ -1033,7 +1061,7 @@ export class ChatService {
       content,
       type: MessageType.SYSTEM,
       system_data: systemData,
-      seen_by: [],  // System messages are not "seen" by anyone initially
+      seen_by: [], // System messages are not "seen" by anyone initially
       status: MessageStatus.SENT,
       delivery_info: [],
     });
@@ -1061,8 +1089,13 @@ export class ChatService {
     const conversation = await this.findConversationById(conversationId);
 
     // Verify both users are participants
-    if (!conversation.participants.includes(ownerId) || !conversation.participants.includes(targetUserId)) {
-      throw new ForbiddenException('Both users must be participants in this conversation');
+    if (
+      !conversation.participants.includes(ownerId) ||
+      !conversation.participants.includes(targetUserId)
+    ) {
+      throw new ForbiddenException(
+        'Both users must be participants in this conversation',
+      );
     }
 
     // Upsert nickname

@@ -45,7 +45,9 @@ interface WsAck {
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+{
   @WebSocketServer()
   server: Server;
 
@@ -146,15 +148,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() payload: { conversationId: string },
   ): Promise<WsAck> {
     try {
-      const roomName = `conversation:${payload.conversationId}`
-      this.logger.log(`User ${client.userId} attempting to join room: ${roomName}`)
+      const roomName = `conversation:${payload.conversationId}`;
+      this.logger.log(
+        `User ${client.userId} attempting to join room: ${roomName}`,
+      );
 
       const isMember = await this.verifyMembership(
         payload.conversationId,
         client.userId!,
       );
       if (!isMember) {
-        this.logger.warn(`User ${client.userId} NOT a member of conversation ${payload.conversationId}`)
+        this.logger.warn(
+          `User ${client.userId} NOT a member of conversation ${payload.conversationId}`,
+        );
         return this.ack(false, null, {
           code: 'FORBIDDEN',
           message: 'Not a participant',
@@ -322,7 +328,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async handleAddMember(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
-    payload: { conversationId: string; userId: number; userName?: string; actorName?: string },
+    payload: {
+      conversationId: string;
+      userId: number;
+      userName?: string;
+      actorName?: string;
+    },
   ): Promise<WsAck> {
     try {
       const dto: AddMemberDto = { userId: payload.userId } as AddMemberDto;
@@ -528,8 +539,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
       // Broadcast to all participants in the conversation room AND to all participants' personal rooms
       // This ensures conversation list updates for users who haven't opened the conversation yet
-      const roomName = `conversation:${payload.conversationId}`
-      this.logger.log(`Broadcasting message:created to room: ${roomName}`)
+      const roomName = `conversation:${payload.conversationId}`;
+      this.logger.log(`Broadcasting message:created to room: ${roomName}`);
 
       // Get conversation to find all participants
       const conversation = await this.chatService.findConversationById(
@@ -552,10 +563,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
       // Broadcast to all participants' personal rooms (for conversation list updates)
       for (const participantId of conversation.participants) {
-        this.server.to(`user:${participantId}`).emit('message:created', messageData);
+        this.server
+          .to(`user:${participantId}`)
+          .emit('message:created', messageData);
       }
 
-      this.logger.log(`Message broadcasted: ${message._id} from user ${message.sender_id} to ${conversation.participants.length} participants`)
+      this.logger.log(
+        `Message broadcasted: ${message._id.toString()} from user ${message.sender_id} to ${conversation.participants.length} participants`,
+      );
 
       // Send notifications to other participants (async, fire and forget)
       this.sendMessageNotifications(
@@ -1013,7 +1028,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           let messageType: 'text' | 'image' | 'file' | 'system' = 'text';
           if (attachments && attachments.length > 0) {
             // Check if attachment is an image
-            if (attachments.some(a => a.match(/\.(jpg|jpeg|png|gif|webp)$/i))) {
+            if (
+              attachments.some((a) => a.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+            ) {
               messageType = 'image';
             } else {
               messageType = 'file';
@@ -1037,7 +1054,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
               content: content.substring(0, 100), // Preview only
               related_id: conversationId,
               sender_id: senderId,
-              conversation_name: conversation.name || (isGroup ? 'Nhóm' : undefined),
+              conversation_name:
+                conversation.name || (isGroup ? 'Nhóm' : undefined),
               message_type: messageType,
             });
 
@@ -1058,7 +1076,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         });
     } catch (error) {
       // Don't throw - notification failure shouldn't break message sending
-      this.logger.error(`[Notification] ❌ Notification error: ${error.message}`);
+      this.logger.error(
+        `[Notification] ❌ Notification error: ${error.message}`,
+      );
       this.logger.error(`[Notification] Error stack: ${error.stack}`);
     }
   }
