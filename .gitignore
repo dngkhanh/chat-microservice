@@ -31,8 +31,10 @@ chat-backend/.env.production.local
 .env
 .env.local
 .env.production
+.env.docker
 frontend/.env
 frontend/.env.local
+frontend/.env.docker
 
 # Build output
 dist/
@@ -62,3 +64,23 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
+
+# Docker volumes
+postgres_data/
+mongodb_data/
+rabbitmq_data/
+
+# AWS & Cloud credentials
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+
+# Terraform (if used)
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
