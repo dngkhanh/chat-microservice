@@ -49,8 +49,7 @@ export class GatewayMiddleware implements NestMiddleware {
     });
 
     (req as any).startTime = Date.now();
-    // Store IP in custom property (req.ip is read-only)
-    (req as any).clientIp = ip;
+    (req as any).clientIp = ip; // Use clientIp instead of ip (ip is read-only)
 
     next();
   }

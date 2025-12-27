@@ -4,7 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ApiGatewayModule } from './api-gateway.module';
 import {
   createReverseProxyMiddleware,
-  createWebSocketProxyMiddleware,
+  createNamespaceAwareWebSocketMiddleware,
 } from './reverse-proxy.middleware';
 import { GlobalExceptionFilter, LoggingInterceptor } from '@app/common';
 
@@ -73,24 +73,38 @@ async function bootstrap() {
     process.env.NOTIFICATION_SERVICE_URL ?? 'http://localhost:3003';
 
   // REST API reverse proxy
+  // User Service routes
   app.use('/auth', createReverseProxyMiddleware('/auth', userServiceUrl));
-  app.use('/user', createReverseProxyMiddleware('/user', userServiceUrl));
-  app.use('/chat', createReverseProxyMiddleware('/chat', chatServiceUrl));
-  app.use('/upload', createReverseProxyMiddleware('/upload', chatServiceUrl));
-  app.use(
-    '/notification',
-    createReverseProxyMiddleware('/notification', notificationServiceUrl),
-  );
+  app.use('/users', createReverseProxyMiddleware('/users', userServiceUrl));
+  app.use('/roles', createReverseProxyMiddleware('/roles', userServiceUrl));
 
-  // WebSocket reverse proxy
+  // Chat Service routes
   app.use(
-    '/socket.io',
-    createWebSocketProxyMiddleware('/socket.io', chatServiceUrl),
+    '/conversations',
+    createReverseProxyMiddleware('/conversations', chatServiceUrl),
   );
+  app.use('/upload', createReverseProxyMiddleware('/upload', chatServiceUrl));
+
+  // Notification Service routes
   app.use(
     '/notifications',
-    createWebSocketProxyMiddleware('/notifications', notificationServiceUrl),
+    createReverseProxyMiddleware('/notifications', notificationServiceUrl),
   );
+
+  // WebSocket reverse proxy with namespace-aware routing
+  // Both /socket.io and /notifications routes are handled by the same middleware
+  // which detects the namespace from query parameters and routes to the correct service
+  const wsProxyMiddleware = createNamespaceAwareWebSocketMiddleware(
+    chatServiceUrl,
+    notificationServiceUrl,
+  );
+
+  // Handle /socket.io requests (chat service with optional /notifications namespace)
+  app.use('/socket.io', wsProxyMiddleware);
+
+  // Handle /notifications requests as WebSocket upgrade (for Socket.IO namespace)
+  // This is deprecated but kept for backward compatibility
+  app.use('/notifications', wsProxyMiddleware);
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
