@@ -103,13 +103,13 @@ export class UsersService {
     const status = query.status;
     const role = query.role;
     const page = query.page ?? 1;
-    
+
     // Apply pagination limits from environment variables
     let limit = query.limit ?? this.defaultPageSize;
     if (limit > this.maxPageSize) {
       limit = this.maxPageSize;
     }
-    
+
     const sortBy = query.sortBy ?? 'created_at';
     const sortOrder = query.sortOrder ?? 'DESC';
 
@@ -214,7 +214,7 @@ export class UsersService {
   }
 
   // ==================================================
-  // ROLE MANAGEMENT
+  // ROLE MANAGEMENT FOR USERS
   // ==================================================
   async addRole(userId: number, roleId: number) {
     const exist = await this.userRoleRepo.findOne({

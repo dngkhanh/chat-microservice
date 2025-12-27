@@ -44,10 +44,17 @@ export class UsersController {
   }
 
   @Post('batch')
-  async findByIds(@Body() body: { ids: number[] }): Promise<PublicUserResponseDto[]> {
-    console.log('[UsersController] findByIds called with body:', JSON.stringify(body));
+  async findByIds(
+    @Body() body: { ids: number[] },
+  ): Promise<PublicUserResponseDto[]> {
+    console.log(
+      '[UsersController] findByIds called with body:',
+      JSON.stringify(body),
+    );
     if (!Array.isArray(body.ids) || body.ids.length === 0) {
-      console.log('[UsersController] No valid IDs provided, returning empty array');
+      console.log(
+        '[UsersController] No valid IDs provided, returning empty array',
+      );
       return [];
     }
     console.log('[UsersController] Fetching users for IDs:', body.ids);
@@ -113,7 +120,11 @@ export class UsersController {
     @GetCurrentUser('sub') userId: number,
   ) {
     console.log('[UsersController] changePassword called for user:', userId);
-    return await this.usersService.changePassword(userId, dto.oldPassword, dto.newPassword);
+    return await this.usersService.changePassword(
+      userId,
+      dto.oldPassword,
+      dto.newPassword,
+    );
   }
 
   // roles
