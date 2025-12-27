@@ -5,7 +5,9 @@ on:
     branches: ["main"]
     paths:
       - "chat-backend/apps/user-service/**"
+      - "chat-backend/libs/**"
       - "chat-backend/deploy/Dockerfile.user-service"
+      - "chat-backend/package*.json"
 
 jobs:
   build-and-push:
@@ -25,15 +27,31 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set image tag
+        id: image-tag
+        run: |
+          echo "tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "date=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build & Push User image
         env:
           REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           IMAGE_NAME: chat-user
+          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+          BUILD_DATE: ${{ steps.image-tag.outputs.date }}
         run: |
-          docker build \
+          docker buildx build \
             -f chat-backend/deploy/Dockerfile.user-service \
-            -t $IMAGE_NAME:latest \
+            -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
+            -t $REGISTRY/$IMAGE_NAME:latest \
+            --label "git.commit=${{ github.sha }}" \
+            --label "git.branch=${{ github.ref_name }}" \
+            --label "build.date=$BUILD_DATE" \
+            --push \
             chat-backend
 
-          docker tag $IMAGE_NAME:latest $REGISTRY/$IMAGE_NAME:latest
-          docker push $REGISTRY/$IMAGE_NAME:latest
+      - name: Image digest
+        run: echo "✅ User service image pushed with tag ${{ steps.image-tag.outputs.tag }}"
