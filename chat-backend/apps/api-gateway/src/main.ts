@@ -107,7 +107,9 @@ async function bootstrap() {
   app.use('/notifications', wsProxyMiddleware);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0', () => {
+    console.log(`Gateway listening on 0.0.0.0:${port}`);
+  });
 
   logger.log(`🚀 API Gateway running on: http://localhost:${port}`);
   logger.log(`📚 API Docs available at: http://localhost:${port}/api/docs`);
