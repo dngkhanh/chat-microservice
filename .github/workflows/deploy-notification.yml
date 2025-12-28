@@ -7,6 +7,7 @@ on:
       - "chat-backend/apps/notification-service/**"
       - "chat-backend/libs/**"
       - "chat-backend/deploy/Dockerfile.notification-service"
+      - "chat-backend/deploy/docker-entrypoint.notification.sh"
       - "chat-backend/package*.json"
 
 jobs:
