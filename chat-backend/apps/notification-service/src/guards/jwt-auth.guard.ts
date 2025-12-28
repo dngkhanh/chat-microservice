@@ -5,14 +5,28 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly reflector: Reflector,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Skip if route is marked as @Public()
+    const isPublic = this.reflector.getAllAndOverride<boolean>('isPublic', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
-    
+
     // Extract token from Authorization header or cookie
     const token =
       this.extractTokenFromHeader(request) ||
@@ -29,10 +43,10 @@ export class JwtAuthGuard implements CanActivate {
       });
 
       // Attach user data to request
-      request.user = payload;
-      
+      (request as Record<string, unknown>).user = payload;
+
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid Token');
     }
   }
