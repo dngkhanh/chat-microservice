@@ -106,6 +106,16 @@ async function bootstrap() {
   // This is deprecated but kept for backward compatibility
   app.use('/notifications', wsProxyMiddleware);
 
+  // Liveness endpoint(s) that do NOT depend on downstream services
+  // Useful for ALB/ECS health checks to avoid startup dependency coupling
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/', (_req: any, res: any) => {
+    res.status(200).send('OK');
+  });
+  httpAdapter.get('/healthz', (_req: any, res: any) => {
+    res.status(200).send('OK');
+  });
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0', () => {
     console.log(`Gateway listening on 0.0.0.0:${port}`);
