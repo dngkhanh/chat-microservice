@@ -48,7 +48,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const port = process.env.CHAT_SERVICE_PORT || 3002;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Chat Service running on: http://localhost:${port}`);
   console.log(`📚 WS Docs available at: http://localhost:${port}/ws-docs`);
