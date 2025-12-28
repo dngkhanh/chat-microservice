@@ -36,43 +36,10 @@ echo "  - User Service: $USER_SERVICE_URL"
 echo "  - Chat Service: $CHAT_SERVICE_URL"
 echo "  - Notification Service: $NOTIFICATION_SERVICE_URL"
 
-# Wait for services to be ready (simple TCP check)
-wait_for_service() {
-  local service=$1
-  local host=$2
-  local port=$3
-  local max_attempts=30
-  local attempt=0
-
-  echo "${YELLOW}Waiting for $service ($host:$port)...${NC}"
-
-  while [ $attempt -lt $max_attempts ]; do
-    if nc -z "$host" "$port" 2>/dev/null; then
-      echo "${GREEN}✓ $service is ready${NC}"
-      return 0
-    fi
-
-    attempt=$((attempt + 1))
-    echo "Waiting for $service ($attempt/$max_attempts)..."
-    sleep 1
-  done
-
-  echo "${RED}❌ $service connection timeout${NC}"
-  return 1
-}
-
-# Only wait for services if in docker/k8s (not localhost)
-if [ "$NODE_ENV" = "production" ] || [ "$DOCKER_ENV" = "true" ]; then
-  echo "${YELLOW}Checking service connectivity...${NC}"
-  wait_for_service "User Service" "user-service" "3001" || true
-  wait_for_service "Chat Service" "chat-service" "3002" || true
-  wait_for_service "Notification Service" "notification-service" "3003" || true
-fi
-
-# Start the application
-echo "${GREEN}✓ All checks passed, starting application...${NC}"
+# Start the application immediately (do NOT wait for downstream services)
+echo "${GREEN}✓ Starting application without waiting for downstream services...${NC}"
 echo "${YELLOW}🌐 Gateway running on port 3000${NC}"
-echo "${YELLOW}📍 Health check endpoint: http://localhost:3000/health${NC}"
+echo "${YELLOW}📍 Health check endpoint: http://localhost:3000/healthz${NC}"
 echo "${YELLOW}📊 Metrics endpoint: http://localhost:3000/metrics${NC}"
 
 exec node dist/apps/api-gateway/main.js
