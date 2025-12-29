@@ -3,11 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import {
-  GlobalExceptionFilter,
-  LoggingInterceptor,
-  WsExceptionFilter,
-} from '@app/common';
+import { GlobalExceptionFilter, LoggingInterceptor } from '@app/common';
 import { NotificationServiceModule } from './notification-service.module';
 
 async function bootstrap() {
@@ -72,7 +68,7 @@ async function bootstrap() {
   // Start all services
   await app.startAllMicroservices();
 
-  const port = process.env.NOTIFICATION_SERVICE_PORT || 3003;
+  const port = process.env.PORT || process.env.NOTIFICATION_PORT || 3003;
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Notification Service running on: http://localhost:${port}`);
