@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies first for better caching
+COPY package*.json ./
+RUN npm install --no-audit --no-fund
+
+# Copy the full app
+COPY . .
+
+# Build only the gateway
+RUN npm run build -- api-gateway
+
+# Render will inject PORT; EXPOSE is informational only
+EXPOSE 3000
+
+# Start the gateway
+CMD ["node", "dist/apps/api-gateway/main.js"]
