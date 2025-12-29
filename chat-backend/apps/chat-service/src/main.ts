@@ -47,7 +47,7 @@ async function bootstrap(): Promise<void> {
     res.type('application/json').send(docs);
   });
 
-  const port = process.env.CHAT_SERVICE_PORT || 3002;
+  const port = process.env.PORT || process.env.CHAT_PORT || 3002;
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Chat Service running on: http://localhost:${port}`);
